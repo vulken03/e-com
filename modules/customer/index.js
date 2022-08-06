@@ -19,7 +19,7 @@ module.exports = (app) => {
     customer_service.passwordResetMail
   );
   app.put("/resetpassword", allowCustomerOnly, customer_service.password_reset);
-  app.post("/email_verify", allowCustomerOnly, customer_service.verify_email);
+  app.get("/email_verify", customer_service.verify_email);
   app.post(
     "/manage_address",
     allowCustomerOnly,

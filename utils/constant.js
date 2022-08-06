@@ -6,6 +6,7 @@ const constants = {
     "/customer_login",
     "/password_reset_mail",
     "/email_verification",
+   
   ],
   responseCodes: {
     success: 200,

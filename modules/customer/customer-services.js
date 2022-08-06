@@ -1,7 +1,9 @@
 const url = require("url");
+const jwt = require("jsonwebtoken");
 const customer_model = require("./customer-model");
 const { constants } = require("../../utils/constant");
 const customer_schema = require("./customer-schema");
+const config = require("../../configuration/config");
 const { decryptRequestData } = require("../../utils/encrypt");
 const common = require("../../utils/common");
 //const { logger } = require("../../utils/logger");
@@ -15,6 +17,7 @@ const signup = async (req, res, next) => {
     if (!isValid) {
       return next(error);
     }
+    
     const customer_signup = await customer_model.signup(data);
 
     if (customer_signup.success === true) {
@@ -212,17 +215,22 @@ const password_reset = async (req, res, next) => {
 
 const verify_email = async (req, res, next) => {
   try {
-    const token = req.body;
-    const customer_id = req.user.customer_id;
-    const { isValid, error } = common.schemaValidator(
-      token,
-      customer_schema.verify_token_schema
-    );
-    if (!isValid) {
-      return next(error);
-    }
+    
+   // const customer_id = req.user.customer_id;
+    // const { isValid, error } = common.schemaValidator(
+    //   token,
+    //   customer_schema.verify_token_schema
+    // );
+    // if (!isValid) {
+    //   return next(error);
+    // }
+    const q=url.parse(req.url,true)
+    const data=q.query
+    console.log(data)
+    const token=jwt.verify(data.token,config.get("jwt.verification_email_key"),
+    { algorithms:["HS384"] })
+    const customer_id=token.userId
     const email_verification = await customer_model.verify_email(
-      token,
       customer_id
     );
     if (email_verification.success === true) {
@@ -232,6 +240,7 @@ const verify_email = async (req, res, next) => {
         message: email_verification.message,
       });
     } else {
+     // console.log('a')
       res.status(constants.responseCodes.badrequest).json({
         success: email_verification.success,
         data: email_verification.data,
@@ -240,7 +249,12 @@ const verify_email = async (req, res, next) => {
       });
     }
   } catch (err) {
+    console.log(err)
+    if(err.name="TokenExpiredError"){
+     next('email verification link expired')
+    }else{
     next(err);
+    }
   }
 };
 

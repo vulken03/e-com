@@ -3,19 +3,21 @@ const { constants } = require("../utils/constant");
 const moment = require("moment");
 const config = require("../configuration/config");
 const { logger } = require("../utils/logger");
-
+const url = require('url');
 const verifyJWT = async ({ token, url }) => {
   try {
     let userData = null;
     if (url == "/resetpassword") {
       userData = jwt.verify(token, config.get("jwt.reset_password_key"), {
-        algorithms: ["HS384"],
+        algorithm: ["HS384"], expiresIn: "1h"
       });
-    } else if (url == "/email_verify") {
-      userData = jwt.verify(token, config.get("jwt.verification_email_key"), {
-        algorithms: ["HS384"],
-      });
-    } else {
+    }
+    // else if (url == "/email_verify") {
+    //   userData = jwt.verify(params, config.get("jwt.verification_email_key"), {
+    //     algorithm: ["HS384"],expiresIn: "1h"
+    //   });
+    // } 
+    else {
       userData = jwt.verify(token, config.get("jwt.key"), {
         algorithms: ["HS384"],
       });
@@ -101,35 +103,43 @@ let isValidUser = async ({ isAdmin, userId }) => {
 };
 
 let authenticateRequest = async (req, res, next) => {
-  if (constants.insecureRoutes.includes(req.url)) {
-    return next();
-  }
-
   try {
-    if (req.headers.authorization) {
-      const userData = await verifyJWT({
-        token: req.headers.authorization,
-        url: req.url,
-      });
-
-      const isSessionValid = await isValidSession(userData.uuid);
-      if (!isSessionValid) {
-        const error = new Error(constants.errors.isExpired);
-        return next(error);
-      }
-
-      const { isUserValid, user } = await isValidUser(userData);
-      if (isUserValid) {
-        console.log(user);
-        req.user = user; // C-TODO: exclude password field from user object
-        req.user.uuid = userData.uuid;
-        req.isAdmin = userData.isAdmin;
-        next();
-      } else {
-        next(new Error("Invalid user id"));
-      }
+    let q = url.parse(req.url, true)
+    if (constants.insecureRoutes.includes(req.url)) {
+      return next();
+    } else if (q.pathname == "/email_verify") {
+      return next();
     } else {
-      next(new Error("Invalid authorization"));
+
+
+
+      if (req.headers.authorization) {
+
+        const userData = await verifyJWT({
+          token: req.headers.authorization,
+          url: req.url,
+
+        });
+
+        const isSessionValid = await isValidSession(userData.uuid);
+        if (!isSessionValid) {
+          const error = new Error(constants.errors.isExpired);
+          return next(error);
+        }
+
+        const { isUserValid, user } = await isValidUser(userData);
+        if (isUserValid) {
+          console.log(user);
+          req.user = user; // C-TODO: exclude password field from user object
+          req.user.uuid = userData.uuid;
+          req.isAdmin = userData.isAdmin;
+          next();
+        } else {
+          next(new Error("Invalid user id"));
+        }
+      } else {
+        next(new Error("Invalid authorization"));
+      }
     }
   } catch (error) {
     logger.error("error", error);

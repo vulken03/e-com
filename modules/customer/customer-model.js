@@ -100,7 +100,7 @@ const signup = async (userData) => {
                 await sendEmail({
                   to: create_customer.email,
                   subject: "account verification",
-                  html: `<h3>${create_token.token}</h3>`,
+                  html: `<h3>http://localhost:8080/email_verify?token=${token}</h3>`,
                 });
 
                 return {
@@ -224,35 +224,29 @@ const createVerificationSession = async (customer_id) => {
   }
 };
 
-const verify_email = async (token, customer_id) => {
-  const { uuid } = token;
-  const find_token = await _DB.verification_token.findOne({
-    where: {
-      token: uuid,
-    },
-    attributes: ["customer_id", "token"],
-    raw: true,
-  });
-  if (find_token) {
-    const verification_update = await _DB.customer.update(
+const verify_email = async (customer_id) => {
+  const find_data=await _DB.customer.findOne({
+    where:{
+      customer_id
+    }
+  })  
+    if(find_data){
+    const verification_update = await find_data.update(
       {
         is_verified: 1,
       },
       {
-        where: {
-          customer_id: find_token.customer_id,
-        },
         fields: ["is_verified"],
       }
     );
     // C-TODO once user is verified delete all its token from verification_token table
     // C-TODO while generating token, store token creation datetime.
     if (verification_update) {
-      await _DB.verification_token.destroy({
-        where: {
-          customer_id,
-        },
-      });
+      // await _DB.verification_token.destroy({
+      //   where: {
+      //     customer_id,
+      //   },
+      // });
       return {
         success: true,
         data: null,
@@ -267,15 +261,16 @@ const verify_email = async (token, customer_id) => {
         message: error_message,
       };
     }
-  } else {
-    const error_message = "you already verify or entered a wrond token";
-    return {
-      success: false,
-      data: null,
-      error: new Error(error_message).stack,
-      message: error_message,
-    };
-  }
+  }else{
+    const error_message = "error while updating verification status..";
+      return {
+        success: false,
+        data: null,
+        error: new Error(error_message).stack,
+        message: error_message,
+      };
+  } 
+  
 };
 
 const email_verification = async (email) => {
